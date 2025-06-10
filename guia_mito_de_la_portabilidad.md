@@ -1,6 +1,11 @@
-La existencia de estándares de SQL generó aseveraciones exageradas acerca de la portabilidad de SQL, de que podía ser utilizado en cualquier sistema de manejo de base de datos basado en SQL. Las diferencias existentes entre los dialectos SQL de cada vendedor son suficientemente significativas para que una aplicación tenga que ser cambiada al tener que emigrar de una base de datos a otra.
+# ⚠️ Portabilidad en SQL
 
-Las diferencias entre los diferentes dialectos de SQL incluyen:
+La existencia de estándares de SQL generó **aseveraciones exageradas** acerca de la portabilidad de SQL, de que podía ser utilizado en cualquier sistema de manejo de base de datos basado en SQL.  
+Las diferencias existentes entre los dialectos SQL de cada vendedor son **suficientemente significativas** para que una aplicación tenga que ser cambiada al tener que emigrar de una base de datos a otra.
+
+---
+
+## 🔍 Las diferencias entre los diferentes dialectos de SQL incluyen:
 
 - **Códigos de error.**  
   Cada implementación comercial tiene sus propios códigos de error.
@@ -19,5 +24,3 @@ Las diferencias entre los diferentes dialectos de SQL incluyen:
 
 - **Secuencias de ordenación.**  
   Los resultados de una consulta serán diferentes si se ejecutan en un computador personal (con caracteres ASCII) o en un maxicomputador (con caracteres EBCDIC).
-
-
