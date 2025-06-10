@@ -17,7 +17,7 @@ Una **transacción** es un conjunto de operaciones SQL que se ejecutan como una 
 
 ### 1. **BEGIN TRANSACTION**
 
-- Marca el inicio de una transacción.
+Marca el inicio de una transacción.
 
 ```sql
 BEGIN TRANSACTION;
@@ -25,7 +25,7 @@ BEGIN TRANSACTION;
 
 ### 2. **SAVE TRANSACTION / SAVEPOINT**
 
-- Define un punto de guardado para rollback parcial.
+Define un punto de guardado para rollback parcial.
 
 ```sql
 SAVE TRANSACTION punto1;  -- SQL Server
@@ -35,7 +35,7 @@ SAVEPOINT punto1;         -- Otros motores
 
 ### 3. **COMMIT TRANSACTION**
 
-- Confirma todos los cambios.
+Confirma todos los cambios.
 
 ```sql
 COMMIT TRANSACTION;
@@ -43,7 +43,7 @@ COMMIT TRANSACTION;
 
 ### 4. **ROLLBACK TRANSACTION**
 
-- Revierte todos los cambios desde el inicio o último commit.
+Revierte todos los cambios desde el inicio o último commit.
 
 ```sql
 ROLLBACK TRANSACTION;
@@ -51,7 +51,7 @@ ROLLBACK TRANSACTION;
 
 ### 5. **ROLLBACK TO SAVEPOINT**
 
-- Revierte hasta un punto guardado específico.
+Revierte hasta un punto guardado específico.
 
 ```sql
 ROLLBACK TRANSACTION punto1;  -- SQL Server
@@ -101,147 +101,108 @@ En este ejemplo, ambas operaciones quedan "cerradas" dentro de la misma transacc
 
 ## Problemas comunes sin buen manejo de transacciones
 
-### **Lectura sucia (Dirty Read)**
+### ⚠️ Actualización perdida
 
-Ocurre cuando una transacción lee datos que otra transacción ha modificado pero **aún no ha confirmado** (no ha hecho COMMIT).
+Ocurre cuando dos transacciones modifican el mismo dato y una sobrescribe los cambios de la otra sin saberlo.
 
-**Ejemplo:**
-```sql
--- Transacción A
-BEGIN TRANSACTION;
-UPDATE Productos SET precio = 100 WHERE id = 1; -- Precio era 50
--- NO hace COMMIT todavía
-
--- Transacción B (al mismo tiempo)
-SELECT precio FROM Productos WHERE id = 1; -- Lee 100 (dato "sucio")
-
--- Transacción A decide cancelar
-ROLLBACK TRANSACTION; -- El precio vuelve a 50
-
--- Transacción B usó el valor 100 que nunca fue real
-```
-
-**Problema:** La transacción B tomó decisiones basada en datos que nunca existieron oficialmente.
-
-### **Lectura no repetible (Non-repeatable Read)**
-
-Una transacción lee los mismos datos dos veces y obtiene **valores diferentes** porque otra transacción los modificó entre las dos lecturas.
-
-**Ejemplo:**
-```sql
--- Transacción A
-BEGIN TRANSACTION;
-SELECT saldo FROM Cuentas WHERE id = 123; -- Lee 1000
-
--- Transacción B (mientras A sigue activa)
-BEGIN TRANSACTION;
-UPDATE Cuentas SET saldo = 500 WHERE id = 123;
-COMMIT TRANSACTION;
-
--- Transacción A lee otra vez
-SELECT saldo FROM Cuentas WHERE id = 123; -- Ahora lee 500
-COMMIT TRANSACTION;
-```
-
-**Problema:** La transacción A esperaba que el saldo fuera consistente durante toda su ejecución, pero cambió a mitad de camino.
-
-### **Inserción fantasma (Phantom Read)**
-
-Una transacción ejecuta la misma consulta dos veces y la segunda vez **aparecen filas nuevas** que no estaban antes.
-
-**Ejemplo:**
-```sql
--- Transacción A
-BEGIN TRANSACTION;
-SELECT COUNT(*) FROM Empleados WHERE departamento = 'Ventas'; -- Cuenta 10
-
--- Transacción B
-BEGIN TRANSACTION;
-INSERT INTO Empleados (nombre, departamento) VALUES ('Juan', 'Ventas');
-COMMIT TRANSACTION;
-
--- Transacción A ejecuta la misma consulta
-SELECT COUNT(*) FROM Empleados WHERE departamento = 'Ventas'; -- Ahora cuenta 11
-COMMIT TRANSACTION;
-```
-
-**Problema:** Aparecieron registros "fantasma" que no existían en la primera consulta.
-
-### **Pérdida de actualizaciones (Lost Update)**
-
-Dos transacciones leen el mismo valor, lo modifican por separado, y una sobrescribe los cambios de la otra.
-
-**Ejemplo:**
 ```sql
 -- Ambas transacciones leen saldo = 1000
 
 -- Transacción A
 BEGIN TRANSACTION;
-SELECT saldo FROM Cuentas WHERE id = 123; -- Lee 1000
--- Calcula: 1000 - 200 = 800
-UPDATE Cuentas SET saldo = 800 WHERE id = 123;
+SELECT saldo FROM Cuenta WHERE id = 1; -- Lee 1000
+UPDATE Cuenta SET saldo = 800 WHERE id = 1; -- Resta 200
 COMMIT TRANSACTION;
 
--- Transacción B (casi al mismo tiempo)
+-- Transacción B
 BEGIN TRANSACTION;
-SELECT saldo FROM Cuentas WHERE id = 123; -- También lee 1000 (valor original)
--- Calcula: 1000 + 300 = 1300
-UPDATE Cuentas SET saldo = 1300 WHERE id = 123; -- Sobrescribe el 800 de A
+SELECT saldo FROM Cuenta WHERE id = 1; -- También lee 1000
+UPDATE Cuenta SET saldo = 1300 WHERE id = 1; -- Suma 300
 COMMIT TRANSACTION;
 
--- Resultado: saldo = 1300, pero debería ser 1100 (1000 - 200 + 300)
+-- Resultado final: saldo = 1300 (se perdió la resta de A)
 ```
 
-**Problema:** Se perdió la actualización de la transacción A. El depósito de 300 sobrescribió completamente el retiro de 200.
+**❗ Problema**: Se pierden cambios porque ambas transacciones trabajaron sobre la misma base sin coordinación.
 
-### **Interbloqueo (Deadlock)**
+### ⚠️ Datos no confirmados
 
-Dos o más transacciones esperan recursos mutuamente, bloqueándose para siempre.
+Una transacción lee datos que otra modificó, pero aún no confirmó (no hizo COMMIT). Si luego se hace un ROLLBACK, los datos eran inválidos.
 
-**Ejemplo:**
 ```sql
 -- Transacción A
 BEGIN TRANSACTION;
-UPDATE Tabla1 SET campo = 'A' WHERE id = 1; -- Bloquea Tabla1
--- Ahora necesita Tabla2...
-UPDATE Tabla2 SET campo = 'A' WHERE id = 1; -- Espera porque B la tiene bloqueada
+UPDATE Productos SET precio = 200 WHERE id = 5;
 
--- Transacción B (al mismo tiempo)
-BEGIN TRANSACTION;
-UPDATE Tabla2 SET campo = 'B' WHERE id = 1; -- Bloquea Tabla2
--- Ahora necesita Tabla1...
-UPDATE Tabla1 SET campo = 'B' WHERE id = 1; -- Espera porque A la tiene bloqueada
+-- Transacción B
+SELECT precio FROM Productos WHERE id = 5; -- Lee 200 (dato no confirmado)
 
--- Resultado: A espera a B, B espera a A = DEADLOCK
+-- Transacción A decide cancelar
+ROLLBACK TRANSACTION;
 ```
 
-**Solución:** El motor de base de datos detecta esto y aborta una de las transacciones automáticamente.
+**❗ Problema**: La transacción B basó decisiones en datos que nunca existieron oficialmente.
 
-**Prevención:**
-- Acceder siempre a las tablas en el mismo orden (primero Tabla1, después Tabla2)
-- Mantener transacciones cortas
-- Usar niveles de aislamiento apropiados
+### ⚠️ Datos inconsistentes
+
+Se leen dos veces los mismos datos dentro de una transacción, pero los valores cambian porque otra transacción los modificó entre lecturas.
+
+```sql
+-- Transacción A
+BEGIN TRANSACTION;
+SELECT stock FROM Inventario WHERE producto = 'X'; -- Lee 50
+
+-- Transacción B
+BEGIN TRANSACTION;
+UPDATE Inventario SET stock = 0 WHERE producto = 'X';
+COMMIT TRANSACTION;
+
+-- Transacción A vuelve a consultar
+SELECT stock FROM Inventario WHERE producto = 'X'; -- Lee 0
+COMMIT TRANSACTION;
+```
+
+**❗ Problema**: La transacción A no obtiene una vista estable de los datos.
+
+### ⚠️ Inserción fantasma
+
+Una transacción ejecuta la misma consulta dos veces, pero entre ambas otro proceso insertó nuevos registros que afectan el resultado.
+
+```sql
+-- Transacción A
+BEGIN TRANSACTION;
+SELECT COUNT(*) FROM Clientes WHERE ciudad = 'Córdoba'; -- Cuenta 100
+
+-- Transacción B
+INSERT INTO Clientes (nombre, ciudad) VALUES ('Juan', 'Córdoba');
+COMMIT TRANSACTION;
+
+-- Transacción A vuelve a consultar
+SELECT COUNT(*) FROM Clientes WHERE ciudad = 'Córdoba'; -- Ahora cuenta 101
+COMMIT TRANSACTION;
+```
+
+**❗ Problema**: El conjunto de resultados cambió durante la transacción sin que A lo notara.
 
 ---
 
 ## Niveles de aislamiento
 
-| Nivel de aislamiento | Evita lectura sucia | Evita lectura no repetible | Evita inserción fantasma |
-|---------------------|---------------------|---------------------------|-------------------------|
-| READ UNCOMMITTED    | No                  | No                        | No                      |
-| READ COMMITTED      | Sí                  | No                        | No                      |
-| REPEATABLE READ     | Sí                  | Sí                        | No                      |
-| SNAPSHOT            | Sí                  | Sí                        | Sí                      |
-| SERIALIZABLE        | Sí                  | Sí                        | Sí                      |
+| Nivel de aislamiento | Evita datos no confirmados | Evita datos inconsistentes | Evita inserción fantasma |
+|---------------------|---------------------------|---------------------------|-------------------------|
+| READ UNCOMMITTED    | ❌                        | ❌                        | ❌                      |
+| READ COMMITTED      | ✅                        | ❌                        | ❌                      |
+| REPEATABLE READ     | ✅                        | ✅                        | ❌                      |
+| SNAPSHOT            | ✅                        | ✅                        | ✅                      |
+| SERIALIZABLE        | ✅                        | ✅                        | ✅                      |
 
 ---
 
 ## Configuraciones avanzadas para transacciones
 
-### 1. **SET DEADLOCK_PRIORITY {NORMAL | HIGH | LOW}**
+### 1. SET DEADLOCK_PRIORITY {NORMAL | HIGH | LOW}
 
-- Controla la prioridad de la transacción cuando ocurre un deadlock (interbloqueo).
-- SQL Server usa esta prioridad para decidir qué transacción abortar si hay bloqueo mutuo.
+Controla la prioridad de la transacción cuando ocurre un deadlock (interbloqueo). SQL Server usa esta prioridad para decidir qué transacción abortar si hay bloqueo mutuo.
 
 | Prioridad | Qué significa |
 |-----------|---------------|
@@ -258,10 +219,9 @@ BEGIN TRANSACTION;
 COMMIT TRANSACTION;
 ```
 
-### 2. **SET LOCK_TIMEOUT período**
+### 2. SET LOCK_TIMEOUT período
 
-- Establece el tiempo (en milisegundos) que una transacción esperará para obtener un bloqueo antes de devolver un error.
-- Evita que la transacción quede bloqueada indefinidamente esperando un recurso.
+Establece el tiempo (en milisegundos) que una transacción esperará para obtener un bloqueo antes de devolver un error. Evita que la transacción quede bloqueada indefinidamente esperando un recurso.
 
 **Ejemplo:**
 
@@ -272,12 +232,9 @@ BEGIN TRANSACTION;
 COMMIT TRANSACTION;
 ```
 
-Si pasados 5 segundos el bloqueo no se libera, la transacción recibe error y puede manejarse para reintentar o abortar.
+### 3. SET TRANSACTION ISOLATION LEVEL
 
-### 3. **SET TRANSACTION ISOLATION LEVEL**
-
-- Define el nivel de aislamiento para la transacción actual, que controla cómo y cuándo se ven los cambios hechos por otras transacciones concurrentes.
-- Afecta la posibilidad de lecturas sucias, no repetibles y fantasmas.
+Define el nivel de aislamiento para la transacción actual, que controla cómo y cuándo se ven los cambios hechos por otras transacciones concurrentes. Afecta la posibilidad de lecturas sucias, no repetibles y fantasmas.
 
 | Nivel de aislamiento | Descripción breve |
 |---------------------|-------------------|
@@ -328,11 +285,11 @@ Con esta configuración:
 
 | Comando | Función |
 |---------|---------|
-| BEGIN TRANSACTION | Inicia una transacción |
-| SAVE TRANSACTION / SAVEPOINT | Marca un punto para rollback parcial |
-| COMMIT TRANSACTION | Confirma todos los cambios |
-| ROLLBACK TRANSACTION | Deshace todos los cambios desde el inicio o último commit |
-| ROLLBACK TO SAVEPOINT | Deshace cambios hasta un punto guardado específico |
-| SET DEADLOCK_PRIORITY | Define prioridad para abortar transacciones en deadlocks |
-| SET LOCK_TIMEOUT | Establece tiempo máximo de espera para bloqueos |
-| SET TRANSACTION ISOLATION LEVEL | Configura nivel de aislamiento de la transacción |
+| `BEGIN TRANSACTION` | Inicia una transacción |
+| `SAVE TRANSACTION` / `SAVEPOINT` | Marca un punto para rollback parcial |
+| `COMMIT TRANSACTION` | Confirma todos los cambios |
+| `ROLLBACK TRANSACTION` | Deshace todos los cambios desde el inicio o último commit |
+| `ROLLBACK TO SAVEPOINT` | Deshace cambios hasta un punto guardado específico |
+| `SET DEADLOCK_PRIORITY` | Define prioridad para abortar transacciones en deadlocks |
+| `SET LOCK_TIMEOUT` | Establece tiempo máximo de espera para bloqueos |
+| `SET TRANSACTION ISOLATION LEVEL` | Configura nivel de aislamiento de la transacción |
