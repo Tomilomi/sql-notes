@@ -24,3 +24,6 @@ Las diferencias existentes entre los dialectos SQL de cada vendedor son **sufici
 
 - **Secuencias de ordenación.**  
   Los resultados de una consulta serán diferentes si se ejecutan en un computador personal (con caracteres ASCII) o en un maxicomputador (con caracteres EBCDIC).
+
+- **Secuencias de cotejo.**
+  Determinan cómo se comparan y ordenan los datos de texto. Diferentes sistemas pueden usar distintas reglas de ordenamiento al considerar mayúsculas/minúsculas, acentos, o alfabetos específicos. Por ejemplo, en algunas secuencias 'a' < 'B' y en otras 'B' < 'a'.
