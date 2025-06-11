@@ -82,6 +82,8 @@ BEGIN
 END
 ```
 
+> RECORDAR QUE AFTER Y FOR FUNCIONAN PERO SE RECOMIENDA AFTER.
+
 > En SQL Server, las pseudotablas `inserted` y `deleted` permiten acceder a los datos involucrados en la operación.
 
 ---
