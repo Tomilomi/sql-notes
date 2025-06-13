@@ -301,3 +301,43 @@ Con esta configuración:
 | `SET DEADLOCK_PRIORITY` | Define prioridad para abortar transacciones en deadlocks |
 | `SET LOCK_TIMEOUT` | Establece tiempo máximo de espera para bloqueos |
 | `SET TRANSACTION ISOLATION LEVEL` | Configura nivel de aislamiento de la transacción |
+
+
+---
+
+Tabla detallada
+
+## ✅ Resumen de problemas de concurrencia y transacciones
+
+### ⚠️ Problemas comunes
+
+| Problema                                         | Qué pasa                                                                                                                                                      | Por qué es un problema                                                                               | Cómo evitarlo                                                           |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **Actualización perdida**                        | Dos transacciones leen el mismo dato y guardan cambios sin coordinarse. El último sobrescribe al primero.                                                     | Se pierden cambios reales, se rompe la lógica de negocio (por ejemplo, saldos erróneos).             | Usar bloqueos de fila o aislamiento adecuado para evitar conflictos.    |
+| **Lectura de datos no confirmados (Dirty Read)** | Una transacción lee un dato modificado que no está confirmado. Si se hace ROLLBACK, ese dato nunca existió.                                                   | Se toman decisiones con datos inválidos, generando errores o incoherencias.                          | Usar READ COMMITTED o superior para evitar leer cambios no confirmados. |
+| **Lectura no repetible (Non-repeatable Read)**   | Una transacción lee un dato, otra lo modifica y confirma; la primera lo vuelve a leer y ve un valor diferente.                                                | La transacción no tiene una vista coherente: el dato cambia mientras se usa.                         | Usar REPEATABLE READ o SERIALIZABLE.                                    |
+| **Inserción fantasma (Phantom Read)**            | Una transacción consulta un conjunto de filas; otra inserta nuevas filas que coinciden con ese criterio. La primera vuelve a consultar y el resultado cambia. | El conjunto de resultados cambia inesperadamente, violando reglas de negocio (ej. control de cupos). | Usar SERIALIZABLE o bloqueos de rango.                                  |
+
+### 🗝️ Problema común
+
+Todos ocurren por falta de coordinación en accesos concurrentes a los mismos datos.
+
+### 🛡️ Solución general
+
+* Elegir niveles de aislamiento adecuados:
+
+  * **READ COMMITTED:** evita Dirty Reads.
+  * **REPEATABLE READ:** evita Lecturas No Repetibles.
+  * **SERIALIZABLE:** evita Insertos Fantasma.
+* Usar bloqueos explícitos si es necesario.
+* Diseñar la lógica de aplicación para minimizar conflictos de concurrencia.
+
+### ✅ Tabla de niveles de aislamiento
+
+| Nivel de aislamiento | Evita Dirty Read | Evita Lectura No Repetible | Evita Inserción Fantasma |
+| -------------------- | ---------------- | -------------------------- | ------------------------ |
+| READ UNCOMMITTED     | ❌                | ❌                          | ❌                        |
+| READ COMMITTED       | ✅                | ❌                          | ❌                        |
+| REPEATABLE READ      | ✅                | ✅                          | ❌                        |
+| SERIALIZABLE         | ✅                | ✅                          | ✅                        |
+
