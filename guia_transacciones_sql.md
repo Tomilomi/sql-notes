@@ -105,6 +105,8 @@ En este ejemplo, ambas operaciones quedan "cerradas" dentro de la misma transacc
 
 Ocurre cuando dos transacciones modifican el mismo dato y una sobrescribe los cambios de la otra sin saberlo.
 
+Dos transacciones hacen uso concurrente de los datos con posterior actualización (ambas), una actualización es aplicada, pero no commiteada a tiempo, por lo que la otra transacción trabaja con datos desactualizados, generando inconsistencia, donde la ultima transacción sobrescribe la primera.
+
 ```sql
 -- Ambas transacciones leen saldo = 1000
 
@@ -127,7 +129,9 @@ COMMIT TRANSACTION;
 
 ### ⚠️ Datos no confirmados
 
-Una transacción lee datos que otra modificó, pero aún no confirmó (no hizo COMMIT). Si luego se hace un ROLLBACK, los datos eran inválidos.
+Una transacción lee datos que otra modificó, pero aún no confirmó (no hizo COMMIT). Si luego se hace un ROLLBACK, los datos eran inválidos. 
+
+Una primera transacción actualiza los datos a tiempo, por lo que la segunda transacción empieza a trabajar con los datos correctos, pero entonces se realiza un ROLLBACK en la primera transacción que la otra transacción no conoce, por lo que trabaja con datos incorrectos o que no son validos, incluso si inicialmente lo parecían.
 
 ```sql
 -- Transacción A
@@ -167,6 +171,10 @@ COMMIT TRANSACTION;
 ### ⚠️ Inserción fantasma
 
 Una transacción ejecuta la misma consulta dos veces, pero entre ambas otro proceso insertó nuevos registros que afectan el resultado.
+
+Se realiza una consulta a la BD y posterior inserción que afecta sobre la visión anterior.
+
+Es decir, se realizan dentro de una transacción múltiples consultas iguales y en una de estas aparece un registro nuevo que no esta en las otras, debido a una inserción perteneciente a una transacción de otro usuario.
 
 ```sql
 -- Transacción A
