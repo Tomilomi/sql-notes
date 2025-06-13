@@ -45,7 +45,7 @@ Las sentencias DML permiten modificar el contenido de las tablas:
 
 ---
 
-## 🔁 Reglas de Actualización y Eliminación en Claves Foráneas
+## 🔁 Reglas de Actualización y Eliminación en Claves Foráneas - Regla de compensacion
 
 Se definen al declarar una `FOREIGN KEY`. Determinan el comportamiento ante cambios en la tabla padre.
 
