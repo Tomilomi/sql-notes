@@ -145,7 +145,7 @@ ROLLBACK TRANSACTION;
 
 ### ⚠️ Datos inconsistentes
 
-Se leen dos veces los mismos datos dentro de una transacción, pero los valores cambian porque otra transacción los modificó entre lecturas.
+Consulta de datos con actualización confirmada posterior de otro usuario.
 
 ```sql
 -- Transacción A
